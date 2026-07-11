@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@theme {
+  --color-glass-bg: rgba(255, 255, 255, 0.4);
+  --color-glass-border: rgba(255, 255, 255, 0.2);
+  --color-accent: #7c3aed;
+  --color-accent-light: #a78bfa;
+  --color-surface: #f0f0f0;
+  --color-text: #1a1a2e;
+  --color-text-secondary: #6b7280;
+}
+
+.dark {
+  --color-glass-bg: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-accent: #a78bfa;
+  --color-accent-light: #c4b5fd;
+  --color-surface: #0f0f1a;
+  --color-text: #e2e8f0;
+  --color-text-secondary: #9ca3af;
+}
+
+@utility glass {
+  background: var(--color-glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-glass-border);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--color-surface);
+  color: var(--color-text);
+  transition: background 0.3s, color 0.3s;
+  min-height: 100vh;
+}
+
+#app {
+  min-height: 100vh;
+}
