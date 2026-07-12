@@ -9,6 +9,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const musicEnabled = ref(false)
   const volume = ref(0.5)
   const sidebarCollapsed = ref(false)
+  const autoStartNextSession = ref(true)
 
   function toggleTheme() {
     theme.value = theme.value === 'light' ? 'dark' : 'light'
@@ -22,7 +23,10 @@ export const useSettingsStore = defineStore('settings', () => {
     sidebarCollapsed.value = !sidebarCollapsed.value
   }
 
-  return { theme, soundEnabled, musicEnabled, volume, sidebarCollapsed, toggleTheme, setTheme, toggleSidebar }
+  return {
+    theme, soundEnabled, musicEnabled, volume, sidebarCollapsed, autoStartNextSession,
+    toggleTheme, setTheme, toggleSidebar,
+  }
 }, {
   persist: true,
 })

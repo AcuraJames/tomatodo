@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import GlassCard from '../components/ui/GlassCard.vue'
 import GlassButton from '../components/ui/GlassButton.vue'
@@ -9,18 +9,26 @@ import BonsaiTree from '../components/zen/BonsaiTree.vue'
 import EnsoCircle from '../components/zen/EnsoCircle.vue'
 import { useTimerStore, FOCUS_OPTIONS } from '../stores/timerStore'
 import { useTasksStore } from '../stores/tasksStore'
+import { useProjectsStore } from '../stores/projectsStore'
 import { useSessionsStore } from '../stores/sessionsStore'
 import { useZenStore } from '../stores/zenStore'
 import { useSettingsStore } from '../stores/settingsStore'
 
 const timer = useTimerStore()
 const tasksStore = useTasksStore()
+const projectsStore = useProjectsStore()
 const sessionsStore = useSessionsStore()
 const zenStore = useZenStore()
 const settings = useSettingsStore()
 const route = useRoute()
 
 let interval: ReturnType<typeof setInterval> | null = null
+
+const showNewTaskForm = ref(false)
+const newTaskTitle = ref('')
+const newTaskProjectId = ref('')
+
+const projectsList = computed(() => projectsStore.sortedProjects)
 
 const activeTasksList = computed(() => tasksStore.activeTasks)
 
@@ -124,6 +132,23 @@ function stopTimer() {
   timer.reset()
 }
 
+function createTask() {
+  if (!newTaskTitle.value.trim()) return
+  const pid = newTaskProjectId.value || 'inbox'
+  tasksStore.addTask(pid, newTaskTitle.value.trim(), pid === 'inbox' ? 'inbox' : 'project')
+  const created = tasksStore.tasks[tasksStore.tasks.length - 1]
+  timer.setActiveTask(created.id)
+  newTaskTitle.value = ''
+  newTaskProjectId.value = ''
+  showNewTaskForm.value = false
+}
+
+function cancelNewTask() {
+  newTaskTitle.value = ''
+  newTaskProjectId.value = ''
+  showNewTaskForm.value = false
+}
+
 watch(() => timer.remaining, (val) => {
   if (val > 0 || timer.status !== 'running') return
 
@@ -146,6 +171,9 @@ watch(() => timer.remaining, (val) => {
     }, 1000)
   } else {
     timer.reset()
+    if (settings.autoStartNextSession) {
+      startTimer()
+    }
   }
 })
 
@@ -278,7 +306,7 @@ onUnmounted(() => {
 
       <!-- Task selector -->
       <GlassCard v-if="timer.status === 'idle'" padding="p-5" class="mt-4 w-full max-w-md">
-        <div class="space-y-2">
+        <div class="space-y-3">
           <label class="text-sm font-medium text-text-secondary">Задача (необязательно)</label>
           <select
             class="w-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl appearance-none cursor-pointer"
@@ -291,6 +319,37 @@ onUnmounted(() => {
               {{ t.title }}
             </option>
           </select>
+
+          <template v-if="!showNewTaskForm">
+            <GlassButton variant="secondary" size="sm" @click="showNewTaskForm = true">
+              + Новая задача
+            </GlassButton>
+          </template>
+
+          <template v-else>
+            <div class="space-y-2 pt-1">
+              <input
+                v-model="newTaskTitle"
+                placeholder="Название задачи"
+                class="w-full glass px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl"
+                @keyup.enter="createTask"
+              />
+              <select
+                v-model="newTaskProjectId"
+                class="w-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl appearance-none cursor-pointer"
+                :style="getSelectStyle()"
+              >
+                <option value="">Входящие</option>
+                <option v-for="p in projectsList" :key="p.id" :value="p.id">
+                  {{ p.emoji }} {{ p.name }}
+                </option>
+              </select>
+              <div class="flex gap-2 pt-1">
+                <GlassButton size="sm" @click="createTask">Сохранить</GlassButton>
+                <GlassButton variant="ghost" size="sm" @click="cancelNewTask">Отмена</GlassButton>
+              </div>
+            </div>
+          </template>
         </div>
       </GlassCard>
 

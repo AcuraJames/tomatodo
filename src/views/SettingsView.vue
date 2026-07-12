@@ -30,6 +30,24 @@ const { isDark, toggle } = useTheme()
     </GlassCard>
 
     <GlassCard padding="p-6">
+      <h3 class="text-sm font-medium text-text-secondary mb-4">Таймер</h3>
+
+      <div class="flex items-center justify-between">
+        <span class="text-sm">Автозапуск следующей сессии</span>
+        <button
+          class="relative w-12 h-6 rounded-full transition-colors duration-200 cursor-pointer"
+          :class="settings.autoStartNextSession ? 'bg-accent' : 'bg-glass-border'"
+          @click="settings.autoStartNextSession = !settings.autoStartNextSession"
+        >
+          <div
+            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+            :class="settings.autoStartNextSession ? 'translate-x-6' : 'translate-x-0.5'"
+          />
+        </button>
+      </div>
+    </GlassCard>
+
+    <GlassCard padding="p-6">
       <h3 class="text-sm font-medium text-text-secondary mb-4">Звук</h3>
 
       <div class="space-y-4">
@@ -83,7 +101,7 @@ const { isDark, toggle } = useTheme()
       <h3 class="text-sm font-medium text-text-secondary mb-4">О приложении</h3>
       <div class="text-sm text-text-secondary space-y-1">
         <p>Tomatodo — помодоро-таймер с японским садом</p>
-        <p>Версия 0.1.8</p>
+        <p>Версия 0.1.10</p>
       </div>
     </GlassCard>
   </div>

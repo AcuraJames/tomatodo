@@ -2,6 +2,21 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Task } from '../types'
 
+function determineListType(dueDate?: string): Task['listType'] {
+  if (!dueDate) return 'inbox'
+
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const due = new Date(dueDate)
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
+  const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (diffDays === 0) return 'today'
+  if (diffDays === 1) return 'today'
+  if (diffDays >= 2 && diffDays <= 7) return 'week'
+  return 'inbox'
+}
+
 export const useTasksStore = defineStore('tasks', () => {
   const tasks = ref<Task[]>([])
 
@@ -60,15 +75,17 @@ export const useTasksStore = defineStore('tasks', () => {
     return map
   })
 
-  function addTask(projectId: string, title: string, listType: Task['listType'] = 'project') {
+  function addTask(projectId: string, title: string, listType: Task['listType'] = 'project', dueDate?: string) {
+    const resolvedListType = listType === 'project' ? 'project' : determineListType(dueDate)
     const task: Task = {
       id: crypto.randomUUID(),
       projectId,
-      listType,
+      listType: resolvedListType,
       title,
       status: 'active',
       totalSeconds: 0,
-      sortOrder: tasks.value.filter(t => t.projectId === projectId && t.listType === listType).length,
+      dueDate,
+      sortOrder: tasks.value.filter(t => t.projectId === projectId && t.listType === resolvedListType).length,
       createdAt: new Date().toISOString(),
     }
     tasks.value.push(task)
@@ -76,7 +93,12 @@ export const useTasksStore = defineStore('tasks', () => {
 
   function updateTask(id: string, data: Partial<Task>) {
     const idx = tasks.value.findIndex(t => t.id === id)
-    if (idx !== -1) Object.assign(tasks.value[idx], data)
+    if (idx !== -1) {
+      if (data.dueDate !== undefined) {
+        data.listType = determineListType(data.dueDate)
+      }
+      Object.assign(tasks.value[idx], data)
+    }
   }
 
   function completeTask(id: string) {
@@ -116,7 +138,7 @@ export const useTasksStore = defineStore('tasks', () => {
     inboxTasks, todayTasks, weekTasks, projectTasks, activeTasks,
     doneInbox, doneToday, doneWeek, doneProject,
     tasksByProject,
-    addTask, updateTask, completeTask, reactivateTask, deleteTask, addSeconds, reorder,
+    addTask, updateTask, completeTask, reactivateTask, deleteTask, addSeconds, reorder, determineListType,
   }
 }, {
   persist: true,

@@ -15,6 +15,7 @@ export interface Task {
   status: 'active' | 'done'
   totalSeconds: number
   sortOrder: number
+  dueDate?: string
   completedAt?: string
   createdAt: string
 }
