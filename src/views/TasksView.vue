@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GlassButton from '../components/ui/GlassButton.vue'
+import Tag from '../components/ui/Tag.vue'
 import ProjectModal from '../components/ui/ProjectModal.vue'
 import { useProjectsStore } from '../stores/projectsStore'
 import { useTasksStore } from '../stores/tasksStore'
@@ -13,10 +14,8 @@ const projects = useProjectsStore()
 const tasksStore = useTasksStore()
 
 const newTaskTitle = ref('')
-const newTaskDueDate = ref('')
 const editingTaskId = ref<string | null>(null)
 const editValue = ref('')
-const editDueDate = ref('')
 const showProjectModal = ref(false)
 
 const viewType = computed<'inbox' | 'today' | 'week' | 'project'>(() => {
@@ -26,6 +25,8 @@ const viewType = computed<'inbox' | 'today' | 'week' | 'project'>(() => {
 })
 
 const projectId = computed(() => route.params.projectId as string || '')
+
+const isList = computed(() => viewType.value === 'inbox' || viewType.value === 'today' || viewType.value === 'week')
 
 const pageTitle = computed(() => {
   if (viewType.value === 'inbox') return { emoji: '📋', title: 'Входящие' }
@@ -67,20 +68,18 @@ function addTask() {
   if (!newTaskTitle.value.trim()) return
   const listType = viewType.value === 'project' ? 'project' : viewType.value
   const pid = viewType.value === 'project' ? projectId.value : listType
-  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType, newTaskDueDate.value || undefined)
+  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType)
   newTaskTitle.value = ''
-  newTaskDueDate.value = ''
 }
 
-function startEdit(taskId: string, title: string, dueDate?: string) {
+function startEdit(taskId: string, title: string) {
   editingTaskId.value = taskId
   editValue.value = title
-  editDueDate.value = dueDate || ''
 }
 
 function saveEdit(taskId: string) {
   if (editValue.value.trim()) {
-    tasksStore.updateTask(taskId, { title: editValue.value.trim(), dueDate: editDueDate.value || undefined })
+    tasksStore.updateTask(taskId, { title: editValue.value.trim() })
   }
   editingTaskId.value = null
 }
@@ -104,16 +103,24 @@ function formatDate(dateStr: string): string {
   return `${day}.${month}.${year}`
 }
 
-function isOverdue(dateStr: string): boolean {
+function getDateTagColor(dueDate?: string): string | undefined {
+  if (!dueDate) return undefined
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const due = new Date(dateStr)
+  const due = new Date(dueDate)
   const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-  return dueDay < today
+  const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return '#ef4444'
+  if (diffDays >= 1 && diffDays <= 6) return '#f59e0b'
+  return '#22c55e'
 }
 
 function getProjectName(projectId: string): string | undefined {
   return projects.sortedProjects.find(p => p.id === projectId)?.name
+}
+
+function getProjectColor(projectId: string): string | undefined {
+  return projects.sortedProjects.find(p => p.id === projectId)?.color
 }
 
 function goToTimer(taskId: string) {
@@ -147,24 +154,14 @@ function goToTimer(taskId: string) {
       </div>
 
       <!-- Add task -->
-      <div class="flex flex-col gap-2">
-        <div class="flex gap-3">
-          <input
-            v-model="newTaskTitle"
-            class="flex-1 glass px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl"
-            :placeholder="`Добавить задачу в «${pageTitle.title}»...`"
-            @keyup.enter="addTask"
-          />
-          <GlassButton @click="addTask">Добавить</GlassButton>
-        </div>
-        <div class="flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <input
-            v-model="newTaskDueDate"
-            type="date"
-            class="glass px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-accent/50 rounded-lg"
-          />
-        </div>
+      <div class="flex gap-3">
+        <input
+          v-model="newTaskTitle"
+          class="flex-1 glass px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl"
+          :placeholder="`Добавить задачу в «${pageTitle.title}»...`"
+          @keyup.enter="addTask"
+        />
+        <GlassButton @click="addTask">Добавить</GlassButton>
       </div>
 
       <!-- Tasks -->
@@ -180,39 +177,33 @@ function goToTimer(taskId: string) {
             @click="tasksStore.completeTask(t.id)"
           />
           <template v-if="editingTaskId === t.id">
-            <div class="flex flex-col gap-1 flex-1">
-              <input
-                v-model="editValue"
-                class="bg-transparent border-b border-accent outline-none text-sm px-1"
-                @keyup.enter="saveEdit(t.id)"
-                @blur="saveEdit(t.id)"
-                @keyup.escape="editingTaskId = null"
-              />
-              <div class="flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <input
-                  v-model="editDueDate"
-                  type="date"
-                  class="glass px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-accent/50 rounded-lg"
-                />
-              </div>
-            </div>
+            <input
+              v-model="editValue"
+              class="flex-1 bg-transparent border-b border-accent outline-none text-sm px-1"
+              @keyup.enter="saveEdit(t.id)"
+              @blur="saveEdit(t.id)"
+              @keyup.escape="editingTaskId = null"
+            />
           </template>
           <template v-else>
             <div class="flex flex-col flex-1 min-w-0">
               <div class="flex items-center gap-2">
                 <span
                   class="text-sm cursor-pointer truncate"
-                  @dblclick="startEdit(t.id, t.title, t.dueDate)"
+                  @dblclick="startEdit(t.id, t.title)"
                 >
                   {{ t.title }}
                 </span>
-                <span v-if="t.dueDate" class="text-xs flex-shrink-0" :class="isOverdue(t.dueDate) ? 'text-red-500' : 'text-text-secondary'">
-                  {{ formatDate(t.dueDate) }}
-                </span>
-                <span v-if="getProjectName(t.projectId)" class="text-[10px] text-text-secondary/60 bg-white/10 dark:bg-white/5 px-1.5 py-0.5 rounded truncate">
-                  {{ getProjectName(t.projectId) }}
-                </span>
+                <Tag
+                  v-if="t.dueDate"
+                  :text="formatDate(t.dueDate)"
+                  :color="getDateTagColor(t.dueDate) || '#6b7280'"
+                />
+                <Tag
+                  v-if="isList && getProjectName(t.projectId)"
+                  :text="getProjectName(t.projectId)!"
+                  :color="getProjectColor(t.projectId) || '#6b7280'"
+                />
               </div>
             </div>
           </template>

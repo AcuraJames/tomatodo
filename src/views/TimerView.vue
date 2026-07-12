@@ -3,6 +3,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import GlassCard from '../components/ui/GlassCard.vue'
 import GlassButton from '../components/ui/GlassButton.vue'
+import Tag from '../components/ui/Tag.vue'
 import KoiFishCanvas from '../components/timer/KoiFishCanvas.vue'
 import ZenBackground from '../components/zen/ZenBackground.vue'
 import BonsaiTree from '../components/zen/BonsaiTree.vue'
@@ -57,6 +58,36 @@ const statusText = computed(() => {
 })
 
 const showZenToggle = computed(() => timer.zenMode && timer.status === 'running' && timer.mode === 'focus' ? false : timer.status === 'idle' || timer.mode === 'break')
+
+const selectedTask = computed(() => tasksStore.tasks.find(t => t.id === timer.activeTaskId))
+
+function getProjectName(projectId: string): string | undefined {
+  return projectsStore.sortedProjects.find(p => p.id === projectId)?.name
+}
+
+function getProjectColor(projectId: string): string | undefined {
+  return projectsStore.sortedProjects.find(p => p.id === projectId)?.color
+}
+
+function getDateTagColor(dueDate?: string): string | undefined {
+  if (!dueDate) return undefined
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const due = new Date(dueDate)
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
+  const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return '#ef4444'
+  if (diffDays >= 1 && diffDays <= 6) return '#f59e0b'
+  return '#22c55e'
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = String(d.getFullYear()).slice(-2)
+  return `${day}.${month}.${year}`
+}
 
 function getSelectStyle() {
   if (timer.zenMode) {
@@ -305,51 +336,70 @@ onUnmounted(() => {
       </GlassCard>
 
       <!-- Task selector -->
-      <GlassCard v-if="timer.status === 'idle'" padding="p-5" class="mt-4 w-full max-w-md">
-        <div class="space-y-3">
-          <label class="text-sm font-medium text-text-secondary">Задача (необязательно)</label>
-          <select
-            class="w-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl appearance-none cursor-pointer"
-            :style="getSelectStyle()"
-            :value="timer.activeTaskId || ''"
-            @change="timer.setActiveTask(($event.target as HTMLSelectElement).value || null)"
-          >
-            <option value="">— без задачи —</option>
-            <option v-for="t in activeTasksList" :key="t.id" :value="t.id">
-              {{ t.title }}
-            </option>
-          </select>
-
-          <template v-if="!showNewTaskForm">
-            <GlassButton variant="secondary" size="sm" @click="showNewTaskForm = true">
-              + Новая задача
-            </GlassButton>
-          </template>
-
-          <template v-else>
-            <div class="space-y-2 pt-1">
-              <input
-                v-model="newTaskTitle"
-                placeholder="Название задачи"
-                class="w-full glass px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl"
-                @keyup.enter="createTask"
+      <GlassCard v-if="timer.status === 'idle'" padding="p-5" class="mt-4 w-full max-w-md relative">
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <select
+              class="w-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl appearance-none cursor-pointer"
+              :style="getSelectStyle()"
+              :value="timer.activeTaskId || ''"
+              @change="timer.setActiveTask(($event.target as HTMLSelectElement).value || null)"
+            >
+              <option value="">Задача</option>
+              <option v-for="t in activeTasksList" :key="t.id" :value="t.id">
+                {{ t.title }}{{ getProjectName(t.projectId) ? ' — ' + getProjectName(t.projectId) : '' }}
+              </option>
+            </select>
+            <div v-if="selectedTask" class="flex items-center gap-1.5 mt-1.5">
+              <Tag
+                v-if="getProjectName(selectedTask.projectId)"
+                :text="getProjectName(selectedTask.projectId)!"
+                :color="getProjectColor(selectedTask.projectId) || '#6b7280'"
               />
-              <select
-                v-model="newTaskProjectId"
-                class="w-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl appearance-none cursor-pointer"
-                :style="getSelectStyle()"
-              >
-                <option value="">Входящие</option>
-                <option v-for="p in projectsList" :key="p.id" :value="p.id">
-                  {{ p.emoji }} {{ p.name }}
-                </option>
-              </select>
-              <div class="flex gap-2 pt-1">
-                <GlassButton size="sm" @click="createTask">Сохранить</GlassButton>
-                <GlassButton variant="ghost" size="sm" @click="cancelNewTask">Отмена</GlassButton>
-              </div>
+              <Tag
+                v-if="selectedTask.dueDate"
+                :text="formatDate(selectedTask.dueDate)"
+                :color="getDateTagColor(selectedTask.dueDate) || '#6b7280'"
+              />
             </div>
-          </template>
+          </div>
+          <button
+            class="w-9 h-9 flex items-center justify-center rounded-xl glass hover:bg-white/30 dark:hover:bg-white/10 transition-all shrink-0 cursor-pointer text-lg leading-none"
+            @click="showNewTaskForm = true"
+            title="Новая задача"
+          >
+            +
+          </button>
+        </div>
+
+        <!-- New task popup -->
+        <div
+          v-if="showNewTaskForm"
+          class="absolute inset-0 z-20 flex items-center justify-center bg-black/20 rounded-xl"
+          @click.self="cancelNewTask"
+        >
+          <div class="glass-strong p-4 rounded-xl w-[calc(100%-2rem)] max-w-sm space-y-3 shadow-xl">
+            <input
+              v-model="newTaskTitle"
+              placeholder="Название задачи"
+              class="w-full glass px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl"
+              @keyup.enter="createTask"
+            />
+            <select
+              v-model="newTaskProjectId"
+              class="w-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl appearance-none cursor-pointer"
+              :style="getSelectStyle()"
+            >
+              <option value="">Входящие</option>
+              <option v-for="p in projectsList" :key="p.id" :value="p.id">
+                {{ p.emoji }} {{ p.name }}
+              </option>
+            </select>
+            <div class="flex gap-2 pt-1">
+              <GlassButton size="sm" @click="createTask">Сохранить</GlassButton>
+              <GlassButton variant="ghost" size="sm" @click="cancelNewTask">Отмена</GlassButton>
+            </div>
+          </div>
         </div>
       </GlassCard>
 
