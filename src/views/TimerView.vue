@@ -25,6 +25,10 @@ let interval: ReturnType<typeof setInterval> | null = null
 const activeTasksList = computed(() => tasksStore.activeTasks)
 
 const progress = computed(() => {
+  if (timer.mode === 'break') {
+    const total = timer.breakDuration * 60
+    return total > 0 ? ((total - timer.remaining) / total) : 0
+  }
   const total = timer.selectedDuration * 60
   return total > 0 ? ((total - timer.remaining) / total) : 0
 })
@@ -35,7 +39,16 @@ const displayTime = computed(() => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
 
-const showZenToggle = computed(() => timer.zenMode && timer.status === 'running' ? false : timer.status === 'idle')
+const statusText = computed(() => {
+  if (timer.mode === 'break') {
+    return timer.status === 'running' ? 'Отдыхаю' : 'Пауза отдыха'
+  }
+  return timer.status === 'idle' ? 'Готов к фокусу'
+    : timer.status === 'running' ? 'Фокусируюсь'
+    : timer.status === 'paused' ? 'Пауза' : 'Готово'
+})
+
+const showZenToggle = computed(() => timer.zenMode && timer.status === 'running' && timer.mode === 'focus' ? false : timer.status === 'idle' || timer.mode === 'break')
 
 function getSelectStyle() {
   if (timer.zenMode) {
@@ -60,6 +73,8 @@ watch(queryTaskId, (id) => {
 }, { immediate: true })
 
 function startTimer() {
+  if (timer.mode === 'break') timer.skipBreak()
+
   timer.start()
 
   const session = {
@@ -99,18 +114,23 @@ function resumeTimer() {
 function stopTimer() {
   if (interval) clearInterval(interval)
   interval = null
-  const session = sessionsStore.sessions.find(s => s.id === timer.activeSessionId)
-  if (session) {
-    session.endedAt = new Date().toISOString()
-    session.status = 'abandoned'
+  if (timer.mode === 'focus') {
+    const session = sessionsStore.sessions.find(s => s.id === timer.activeSessionId)
+    if (session) {
+      session.endedAt = new Date().toISOString()
+      session.status = 'abandoned'
+    }
   }
   timer.reset()
 }
 
 watch(() => timer.remaining, (val) => {
-  if (val <= 0 && timer.status === 'running') {
-    if (interval) clearInterval(interval)
-    interval = null
+  if (val > 0 || timer.status !== 'running') return
+
+  if (interval) clearInterval(interval)
+  interval = null
+
+  if (timer.mode === 'focus') {
     const session = sessionsStore.sessions.find(s => s.id === timer.activeSessionId)
     if (session) {
       session.endedAt = new Date().toISOString()
@@ -119,11 +139,24 @@ watch(() => timer.remaining, (val) => {
     if (timer.activeTaskId) {
       tasksStore.addSeconds(timer.activeTaskId, timer.selectedDuration * 60)
     }
+
+    timer.startBreak()
+    interval = setInterval(() => {
+      timer.tick()
+    }, 1000)
+  } else {
+    timer.reset()
   }
 })
 
+function skipBreak() {
+  if (interval) clearInterval(interval)
+  interval = null
+  timer.skipBreak()
+}
+
 function completeTaskEarly() {
-  if (timer.status === 'idle') return
+  if (timer.status === 'idle' || timer.mode === 'break') return
   if (interval) clearInterval(interval)
   interval = null
 
@@ -211,7 +244,7 @@ onUnmounted(() => {
                   fill="none"
                   stroke="currentColor"
                   stroke-width="3"
-                  class="text-accent"
+                  :class="timer.mode === 'break' ? 'text-green-500' : 'text-accent'"
                   stroke-linecap="round"
                   :stroke-dasharray="2 * Math.PI * 45"
                   :stroke-dashoffset="2 * Math.PI * 45 * (1 - progress)"
@@ -223,9 +256,7 @@ onUnmounted(() => {
             <EnsoCircle v-else :progress="progress" :size="224" />
             <div class="absolute inset-0 flex flex-col items-center justify-center" style="z-index: 10;">
               <span class="text-5xl font-bold tracking-tight font-mono">{{ displayTime }}</span>
-              <span class="text-sm text-text-secondary mt-2">
-                {{ timer.status === 'idle' ? 'Готов к фокусу' : timer.status === 'running' ? 'Фокусируюсь' : timer.status === 'paused' ? 'Пауза' : 'Готово' }}
-              </span>
+              <span class="text-sm text-text-secondary mt-2">{{ statusText }}</span>
             </div>
           </div>
 
@@ -276,7 +307,7 @@ onUnmounted(() => {
             Старт
           </GlassButton>
         </template>
-        <template v-else-if="timer.status === 'running'">
+        <template v-else-if="timer.status === 'running' && timer.mode === 'focus'">
           <GlassButton variant="secondary" size="lg" @click="pauseTimer">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
             Пауза
@@ -286,7 +317,13 @@ onUnmounted(() => {
             Готово
           </GlassButton>
         </template>
-        <template v-else-if="timer.status === 'paused'">
+        <template v-else-if="timer.status === 'running' && timer.mode === 'break'">
+          <GlassButton variant="ghost" size="lg" @click="skipBreak">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+            Прервать отдых
+          </GlassButton>
+        </template>
+        <template v-else-if="timer.status === 'paused' && timer.mode === 'focus'">
           <GlassButton size="lg" @click="resumeTimer">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             Продолжить
@@ -294,6 +331,16 @@ onUnmounted(() => {
           <GlassButton variant="ghost" size="lg" @click="stopTimer">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
             Остановить
+          </GlassButton>
+        </template>
+        <template v-else-if="timer.status === 'paused' && timer.mode === 'break'">
+          <GlassButton size="lg" @click="resumeTimer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            Продолжить
+          </GlassButton>
+          <GlassButton variant="ghost" size="lg" @click="skipBreak">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+            Прервать отдых
           </GlassButton>
         </template>
       </div>

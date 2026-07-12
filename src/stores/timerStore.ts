@@ -18,6 +18,7 @@ export const useTimerStore = defineStore('timer', () => {
   const activeSessionId = ref<string | null>(null)
   const activeTaskId = ref<string | null>(null)
   const zenMode = ref(false)
+  const breakDuration = ref(5)
 
   function setDuration(minutes: number) {
     selectedDuration.value = minutes
@@ -29,6 +30,7 @@ export const useTimerStore = defineStore('timer', () => {
   }
 
   function start() {
+    mode.value = 'focus'
     status.value = 'running'
   }
 
@@ -42,8 +44,20 @@ export const useTimerStore = defineStore('timer', () => {
 
   function reset() {
     status.value = 'idle'
+    mode.value = 'focus'
     remaining.value = selectedDuration.value * 60
     activeSessionId.value = null
+  }
+
+  function startBreak() {
+    mode.value = 'break'
+    remaining.value = breakDuration.value * 60
+    status.value = 'running'
+    activeSessionId.value = null
+  }
+
+  function skipBreak() {
+    reset()
   }
 
   function tick() {
@@ -60,8 +74,9 @@ export const useTimerStore = defineStore('timer', () => {
 
   return {
     mode, selectedDuration, remaining, status,
-    activeSessionId, activeTaskId, zenMode,
-    setDuration, setActiveTask, start, pause, resume, reset, tick, setSessionId, toggleZen,
+    activeSessionId, activeTaskId, zenMode, breakDuration,
+    setDuration, setActiveTask, start, pause, resume, reset, tick,
+    setSessionId, toggleZen, startBreak, skipBreak,
   }
 }, {
   persist: true,
