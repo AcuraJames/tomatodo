@@ -337,34 +337,42 @@ onUnmounted(() => {
 
       <!-- Task selector -->
       <GlassCard v-if="timer.status === 'idle'" padding="p-5" class="mt-4 w-full max-w-md relative">
-        <div class="flex items-center gap-2">
-          <div class="relative flex-1">
-            <select
-              class="w-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl appearance-none cursor-pointer"
+        <div class="flex gap-2">
+          <div class="relative flex-1 h-[42px]">
+            <div
+              class="absolute inset-0 flex items-center px-4 rounded-xl pointer-events-none"
               :style="getSelectStyle()"
+            >
+              <span class="text-sm truncate" :class="selectedTask ? '' : 'text-text-secondary'">
+                {{ selectedTask ? selectedTask.title : 'Задача' }}
+              </span>
+              <div class="flex items-center gap-1 ml-auto pl-2">
+                <Tag
+                  v-if="selectedTask && getProjectName(selectedTask.projectId)"
+                  :text="getProjectName(selectedTask.projectId)!"
+                  :color="getProjectColor(selectedTask.projectId) || '#6b7280'"
+                />
+                <Tag
+                  v-if="selectedTask && selectedTask.dueDate"
+                  :text="formatDate(selectedTask.dueDate)"
+                  :color="getDateTagColor(selectedTask.dueDate) || '#6b7280'"
+                />
+              </div>
+              <svg class="w-4 h-4 ml-2 text-text-secondary flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <select
+              class="absolute inset-0 w-full opacity-0 cursor-pointer text-sm focus:outline-none"
               :value="timer.activeTaskId || ''"
               @change="timer.setActiveTask(($event.target as HTMLSelectElement).value || null)"
             >
               <option value="">Задача</option>
               <option v-for="t in activeTasksList" :key="t.id" :value="t.id">
-                {{ t.title }}{{ getProjectName(t.projectId) ? ' — ' + getProjectName(t.projectId) : '' }}
+                {{ t.title }}
               </option>
             </select>
-            <div v-if="selectedTask" class="flex items-center gap-1.5 mt-1.5">
-              <Tag
-                v-if="getProjectName(selectedTask.projectId)"
-                :text="getProjectName(selectedTask.projectId)!"
-                :color="getProjectColor(selectedTask.projectId) || '#6b7280'"
-              />
-              <Tag
-                v-if="selectedTask.dueDate"
-                :text="formatDate(selectedTask.dueDate)"
-                :color="getDateTagColor(selectedTask.dueDate) || '#6b7280'"
-              />
-            </div>
           </div>
           <button
-            class="w-9 h-9 flex items-center justify-center rounded-xl glass hover:bg-white/30 dark:hover:bg-white/10 transition-all shrink-0 cursor-pointer text-lg leading-none"
+            class="px-3 py-2.5 flex items-center justify-center rounded-xl glass hover:bg-white/30 dark:hover:bg-white/10 transition-all shrink-0 cursor-pointer text-lg leading-none"
             @click="showNewTaskForm = true"
             title="Новая задача"
           >
