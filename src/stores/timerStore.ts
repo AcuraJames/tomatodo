@@ -19,6 +19,7 @@ export const useTimerStore = defineStore('timer', () => {
   const activeTaskId = ref<string | null>(null)
   const zenMode = ref(false)
   const breakDuration = ref(5)
+  const lastTickAt = ref<string | null>(null)
 
   function setDuration(minutes: number) {
     selectedDuration.value = minutes
@@ -32,6 +33,7 @@ export const useTimerStore = defineStore('timer', () => {
   function start() {
     mode.value = 'focus'
     status.value = 'running'
+    lastTickAt.value = new Date().toISOString()
   }
 
   function pause() {
@@ -39,7 +41,10 @@ export const useTimerStore = defineStore('timer', () => {
   }
 
   function resume() {
-    if (status.value === 'paused') status.value = 'running'
+    if (status.value === 'paused') {
+      status.value = 'running'
+      lastTickAt.value = new Date().toISOString()
+    }
   }
 
   function reset() {
@@ -47,6 +52,7 @@ export const useTimerStore = defineStore('timer', () => {
     mode.value = 'focus'
     remaining.value = selectedDuration.value * 60
     activeSessionId.value = null
+    lastTickAt.value = null
   }
 
   function startBreak() {
@@ -54,6 +60,7 @@ export const useTimerStore = defineStore('timer', () => {
     remaining.value = breakDuration.value * 60
     status.value = 'running'
     activeSessionId.value = null
+    lastTickAt.value = new Date().toISOString()
   }
 
   function skipBreak() {
@@ -62,6 +69,7 @@ export const useTimerStore = defineStore('timer', () => {
 
   function tick() {
     if (remaining.value > 0) remaining.value--
+    lastTickAt.value = new Date().toISOString()
   }
 
   function setSessionId(id: string) {
@@ -72,12 +80,29 @@ export const useTimerStore = defineStore('timer', () => {
     zenMode.value = !zenMode.value
   }
 
+  function recoverFromReload() {
+    if (status.value !== 'running' || !lastTickAt.value) return
+    const elapsed = Math.floor((Date.now() - new Date(lastTickAt.value).getTime()) / 1000)
+    const newRemaining = remaining.value - elapsed
+    if (newRemaining <= 0) {
+      remaining.value = 0
+    } else {
+      remaining.value = newRemaining
+      lastTickAt.value = new Date().toISOString()
+    }
+  }
+
   return {
     mode, selectedDuration, remaining, status,
-    activeSessionId, activeTaskId, zenMode, breakDuration,
+    activeSessionId, activeTaskId, zenMode, breakDuration, lastTickAt,
     setDuration, setActiveTask, start, pause, resume, reset, tick,
-    setSessionId, toggleZen, startBreak, skipBreak,
+    setSessionId, toggleZen, startBreak, skipBreak, recoverFromReload,
   }
 }, {
-  persist: true,
+  persist: {
+    afterHydrate: () => {
+      const store = useTimerStore()
+      store.recoverFromReload()
+    },
+  },
 })

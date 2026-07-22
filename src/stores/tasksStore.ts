@@ -11,7 +11,7 @@ function determineListType(dueDate?: string): Task['listType'] {
   const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
   const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
-  if (diffDays === 0) return 'today'
+  if (diffDays <= 0) return 'today'
   if (diffDays >= 1 && diffDays <= 6) return 'week'
   return 'inbox'
 }

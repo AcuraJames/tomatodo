@@ -14,6 +14,8 @@ import { useProjectsStore } from '../stores/projectsStore'
 import { useSessionsStore } from '../stores/sessionsStore'
 import { useZenStore } from '../stores/zenStore'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useNotification } from '../composables/useNotification'
+import { getDateTagColor, formatDate, getProjectName, getProjectColor } from '../utils/helpers'
 
 const timer = useTimerStore()
 const tasksStore = useTasksStore()
@@ -22,6 +24,7 @@ const sessionsStore = useSessionsStore()
 const zenStore = useZenStore()
 const settings = useSettingsStore()
 const route = useRoute()
+const { notify } = useNotification()
 
 let interval: ReturnType<typeof setInterval> | null = null
 
@@ -57,55 +60,22 @@ const statusText = computed(() => {
     : timer.status === 'paused' ? 'Пауза' : 'Готово'
 })
 
-const showZenToggle = computed(() => timer.zenMode && timer.status === 'running' && timer.mode === 'focus' ? false : timer.status === 'idle' || timer.mode === 'break')
+const showZenToggle = computed(() => {
+  if (timer.status === 'running' && timer.mode === 'focus') return false
+  return timer.status === 'idle' || timer.mode === 'break'
+})
 
 const selectedTask = computed(() => tasksStore.tasks.find(t => t.id === timer.activeTaskId))
 
-function getProjectName(projectId: string): string | undefined {
-  return projectsStore.sortedProjects.find(p => p.id === projectId)?.name
-}
-
-function getProjectColor(projectId: string): string | undefined {
-  return projectsStore.sortedProjects.find(p => p.id === projectId)?.color
-}
-
-function getDateTagColor(dueDate?: string): string | undefined {
-  if (!dueDate) return undefined
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const due = new Date(dueDate)
-  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
-  const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return '#ef4444'
-  if (diffDays >= 1 && diffDays <= 6) return '#f59e0b'
-  return '#22c55e'
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const year = String(d.getFullYear()).slice(-2)
-  return `${day}.${month}.${year}`
-}
-
 function getSelectStyle() {
-  if (timer.zenMode) {
-    const isDark = settings.theme === 'dark'
-    return {
-      background: isDark ? '#1a1a2e' : '#ffffff',
-      color: isDark ? '#e2e8f0' : '#1a1a2e',
-      border: isDark ? '1px solid #4b5563' : '1px solid #d1d5db',
-    }
-  }
+  const isDark = settings.theme === 'dark'
   return {
-    background: settings.theme === 'dark' ? '#1a1a2e' : '#ffffff',
-    color: settings.theme === 'dark' ? '#e2e8f0' : '#1a1a2e',
-    border: settings.theme === 'dark' ? '1px solid #4b5563' : '1px solid #d1d5db',
+    background: isDark ? '#1a1a2e' : '#ffffff',
+    color: isDark ? '#e2e8f0' : '#1a1a2e',
+    border: isDark ? '1px solid #4b5563' : '1px solid #d1d5db',
   }
 }
 
-// Handle ?task= query param
 const queryTaskId = computed(() => route.query.task as string)
 watch(queryTaskId, (id) => {
   if (id) timer.setActiveTask(id)
@@ -165,8 +135,9 @@ function stopTimer() {
 
 function createTask() {
   if (!newTaskTitle.value.trim()) return
-  const pid = newTaskProjectId.value || 'inbox'
-  tasksStore.addTask(pid, newTaskTitle.value.trim(), pid === 'inbox' ? 'inbox' : 'project')
+  const pid = newTaskProjectId.value || ''
+  const listType = pid ? 'project' : 'inbox'
+  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType)
   const created = tasksStore.tasks[tasksStore.tasks.length - 1]
   timer.setActiveTask(created.id)
   newTaskTitle.value = ''
@@ -196,11 +167,15 @@ watch(() => timer.remaining, (val) => {
       tasksStore.addSeconds(timer.activeTaskId, timer.selectedDuration * 60)
     }
 
+    notify('Фокус завершён', 'Время для отдыха! 🍵')
+
     timer.startBreak()
     interval = setInterval(() => {
       timer.tick()
     }, 1000)
   } else {
+    notify('Перерыв окончен', 'Готов к новому фокусу! 🍅')
+
     timer.reset()
     if (settings.autoStartNextSession) {
       startTimer()
@@ -247,7 +222,7 @@ function completeTaskEarly() {
 }
 
 function handleVisibilityChange() {
-  if (document.hidden && timer.status === 'running') {
+  if (document.hidden && timer.status === 'running' && timer.mode === 'focus') {
     stopTimer()
   }
 }

@@ -9,6 +9,7 @@ const router = createRouter({
     { path: '/timer', name: 'timer', component: () => import('../views/TimerView.vue') },
     { path: '/stats', name: 'stats', component: () => import('../views/StatsView.vue') },
     { path: '/settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
+    { path: '/:pathMatch(.*)*', name: 'not-found', redirect: '/' },
   ],
 })
 
