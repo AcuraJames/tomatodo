@@ -101,7 +101,7 @@ const { isDark, toggle } = useTheme()
       <h3 class="text-sm font-medium text-text-secondary mb-4">О приложении</h3>
       <div class="text-sm text-text-secondary space-y-1">
         <p>Tomatodo — помодоро-таймер с японским садом</p>
-        <p>Версия 0.1.13</p>
+        <p>Версия 0.1.14</p>
       </div>
     </GlassCard>
   </div>

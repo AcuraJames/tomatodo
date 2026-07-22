@@ -90,6 +90,42 @@ describe('tasksStore', () => {
       expect(store.tasks[0].projectId).toBe('')
       expect(store.tasks[0].listType).toBe('inbox')
     })
+
+    it('sets listType to week for tomorrow dueDate', () => {
+      const store = useTasksStore()
+      store.addTask('', 'Tomorrow task', 'inbox', '2026-01-16')
+      expect(store.tasks[0].listType).toBe('week')
+    })
+
+    it('sets listType to week for 6 days from now', () => {
+      const store = useTasksStore()
+      store.addTask('', 'Week task', 'inbox', '2026-01-21')
+      expect(store.tasks[0].listType).toBe('week')
+    })
+
+    it('sets listType to inbox for 7+ days from now', () => {
+      const store = useTasksStore()
+      store.addTask('', 'Far task', 'inbox', '2026-01-22')
+      expect(store.tasks[0].listType).toBe('inbox')
+    })
+
+    it('sets listType to today for today dueDate', () => {
+      const store = useTasksStore()
+      store.addTask('', 'Today task', 'inbox', '2026-01-15')
+      expect(store.tasks[0].listType).toBe('today')
+    })
+
+    it('sets listType to inbox when no dueDate', () => {
+      const store = useTasksStore()
+      store.addTask('', 'No date task', 'inbox')
+      expect(store.tasks[0].listType).toBe('inbox')
+    })
+
+    it('project tasks always get listType project regardless of dueDate', () => {
+      const store = useTasksStore()
+      store.addTask('proj-1', 'Project task', 'project', '2026-01-15')
+      expect(store.tasks[0].listType).toBe('project')
+    })
   })
 
   describe('completeTask', () => {

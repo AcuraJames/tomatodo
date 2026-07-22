@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import GlassButton from '../components/ui/GlassButton.vue'
 import Tag from '../components/ui/Tag.vue'
+import CalendarPicker from '../components/ui/CalendarPicker.vue'
 import ProjectModal from '../components/ui/ProjectModal.vue'
 import { useProjectsStore } from '../stores/projectsStore'
 import { useTasksStore } from '../stores/tasksStore'
@@ -15,6 +16,7 @@ const projects = useProjectsStore()
 const tasksStore = useTasksStore()
 
 const newTaskTitle = ref('')
+const newTaskDueDate = ref('')
 const editingTaskId = ref<string | null>(null)
 const editValue = ref('')
 const showProjectModal = ref(false)
@@ -28,6 +30,8 @@ const viewType = computed<'inbox' | 'today' | 'week' | 'project'>(() => {
 const projectId = computed(() => route.params.projectId as string || '')
 
 const isList = computed(() => viewType.value === 'inbox' || viewType.value === 'today' || viewType.value === 'week')
+
+const showCalendar = computed(() => viewType.value !== 'today')
 
 const pageTitle = computed(() => {
   if (viewType.value === 'inbox') return { emoji: '📋', title: 'Входящие' }
@@ -63,14 +67,16 @@ const doneTasks = computed<Task[]>(() => {
 
 watch(() => route.params, () => {
   newTaskTitle.value = ''
+  newTaskDueDate.value = ''
 }, { immediate: true })
 
 function addTask() {
   if (!newTaskTitle.value.trim()) return
   const listType = viewType.value === 'project' ? 'project' : viewType.value
   const pid = viewType.value === 'project' ? projectId.value : listType
-  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType)
+  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType, newTaskDueDate.value || undefined)
   newTaskTitle.value = ''
+  newTaskDueDate.value = ''
 }
 
 function startEdit(taskId: string, title: string) {
@@ -127,13 +133,18 @@ function goToTimer(taskId: string) {
       </div>
 
       <!-- Add task -->
-      <div class="flex gap-3">
-        <input
-          v-model="newTaskTitle"
-          class="flex-1 glass px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl"
-          :placeholder="`Добавить задачу в «${pageTitle.title}»...`"
-          @keyup.enter="addTask"
-        />
+      <div class="flex gap-3 items-end">
+        <div class="flex-1 flex gap-3">
+          <input
+            v-model="newTaskTitle"
+            class="flex-1 glass px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl"
+            :placeholder="`Добавить задачу в «${pageTitle.title}»...`"
+            @keyup.enter="addTask"
+          />
+          <div v-if="showCalendar" class="w-48">
+            <CalendarPicker v-model="newTaskDueDate" placeholder="Срок" />
+          </div>
+        </div>
         <GlassButton @click="addTask">Добавить</GlassButton>
       </div>
 

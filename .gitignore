@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Project docs (not in repo)
+FIX.md
+TEST.md
+MAP.md

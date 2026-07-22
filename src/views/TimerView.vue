@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import GlassCard from '../components/ui/GlassCard.vue'
 import GlassButton from '../components/ui/GlassButton.vue'
 import Tag from '../components/ui/Tag.vue'
+import CalendarPicker from '../components/ui/CalendarPicker.vue'
 import KoiFishCanvas from '../components/timer/KoiFishCanvas.vue'
 import ZenBackground from '../components/zen/ZenBackground.vue'
 import BonsaiTree from '../components/zen/BonsaiTree.vue'
@@ -31,6 +32,7 @@ let interval: ReturnType<typeof setInterval> | null = null
 const showNewTaskForm = ref(false)
 const newTaskTitle = ref('')
 const newTaskProjectId = ref('')
+const newTaskDueDate = ref('')
 
 const projectsList = computed(() => projectsStore.sortedProjects)
 
@@ -66,15 +68,6 @@ const showZenToggle = computed(() => {
 })
 
 const selectedTask = computed(() => tasksStore.tasks.find(t => t.id === timer.activeTaskId))
-
-function getSelectStyle() {
-  const isDark = settings.theme === 'dark'
-  return {
-    background: isDark ? '#1a1a2e' : '#ffffff',
-    color: isDark ? '#e2e8f0' : '#1a1a2e',
-    border: isDark ? '1px solid #4b5563' : '1px solid #d1d5db',
-  }
-}
 
 const queryTaskId = computed(() => route.query.task as string)
 watch(queryTaskId, (id) => {
@@ -137,17 +130,19 @@ function createTask() {
   if (!newTaskTitle.value.trim()) return
   const pid = newTaskProjectId.value || ''
   const listType = pid ? 'project' : 'inbox'
-  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType)
+  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType, newTaskDueDate.value || undefined)
   const created = tasksStore.tasks[tasksStore.tasks.length - 1]
   timer.setActiveTask(created.id)
   newTaskTitle.value = ''
   newTaskProjectId.value = ''
+  newTaskDueDate.value = ''
   showNewTaskForm.value = false
 }
 
 function cancelNewTask() {
   newTaskTitle.value = ''
   newTaskProjectId.value = ''
+  newTaskDueDate.value = ''
   showNewTaskForm.value = false
 }
 
@@ -315,10 +310,9 @@ onUnmounted(() => {
         <div class="flex gap-2">
           <div class="relative flex-1 h-[42px]">
             <div
-              class="absolute inset-0 flex items-center px-4 rounded-xl pointer-events-none"
-              :style="getSelectStyle()"
+              class="absolute inset-0 flex items-center px-4 rounded-xl pointer-events-none bg-white dark:bg-[#1a1a2e] border border-glass-border"
             >
-              <span class="text-sm truncate" :class="selectedTask ? '' : 'text-text-secondary'">
+              <span class="text-sm truncate" :class="selectedTask ? 'text-text' : 'text-text-secondary'">
                 {{ selectedTask ? selectedTask.title : 'Задача' }}
               </span>
               <div class="flex items-center gap-1 ml-auto pl-2">
@@ -354,37 +348,51 @@ onUnmounted(() => {
             +
           </button>
         </div>
+      </GlassCard>
 
-        <!-- New task popup -->
-        <div
-          v-if="showNewTaskForm"
-          class="absolute inset-0 z-20 flex items-center justify-center bg-black/20 rounded-xl"
-          @click.self="cancelNewTask"
-        >
-          <div class="glass-strong p-4 rounded-xl w-[calc(100%-2rem)] max-w-sm space-y-3 shadow-xl">
+      <!-- New task modal -->
+      <Teleport to="body">
+        <div v-if="showNewTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="cancelNewTask">
+          <div class="bg-white dark:bg-[#1a1a2e] p-6 rounded-2xl w-80 space-y-5 shadow-2xl border border-glass-border">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold">Новая задача</h3>
+              <button class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-text-secondary" @click="cancelNewTask">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+
             <input
               v-model="newTaskTitle"
-              placeholder="Название задачи"
-              class="w-full glass px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl"
+              class="w-full bg-transparent border-b-2 border-glass-border focus:border-accent outline-none px-1 py-1 text-sm transition-colors"
+              placeholder="Название задачи..."
               @keyup.enter="createTask"
             />
-            <select
-              v-model="newTaskProjectId"
-              class="w-full px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-accent/50 rounded-xl appearance-none cursor-pointer"
-              :style="getSelectStyle()"
-            >
-              <option value="">Входящие</option>
-              <option v-for="p in projectsList" :key="p.id" :value="p.id">
-                {{ p.emoji }} {{ p.name }}
-              </option>
-            </select>
-            <div class="flex gap-2 pt-1">
-              <GlassButton size="sm" @click="createTask">Сохранить</GlassButton>
-              <GlassButton variant="ghost" size="sm" @click="cancelNewTask">Отмена</GlassButton>
+
+            <div>
+              <label class="text-xs text-text-secondary mb-2 block">Проект</label>
+              <select
+                v-model="newTaskProjectId"
+                class="w-full px-4 py-2.5 text-sm rounded-xl bg-white dark:bg-[#1a1a2e] border border-glass-border focus:border-accent outline-none appearance-none cursor-pointer transition-colors"
+              >
+                <option value="">Входящие</option>
+                <option v-for="p in projectsList" :key="p.id" :value="p.id">
+                  {{ p.emoji }} {{ p.name }}
+                </option>
+              </select>
+            </div>
+
+            <div>
+              <label class="text-xs text-text-secondary mb-2 block">Срок</label>
+              <CalendarPicker v-model="newTaskDueDate" placeholder="Выбрать дату" />
+            </div>
+
+            <div class="flex gap-2 pt-2">
+              <GlassButton variant="ghost" class="flex-1" @click="cancelNewTask">Отмена</GlassButton>
+              <GlassButton class="flex-1" :disabled="!newTaskTitle.trim()" @click="createTask">Создать</GlassButton>
             </div>
           </div>
         </div>
-      </GlassCard>
+      </Teleport>
 
       <!-- Bonsai (Zen mode) -->
       <div v-if="timer.zenMode && timer.status !== 'idle'" class="mt-4 w-full max-w-[180px] mx-auto">
