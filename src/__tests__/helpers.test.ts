@@ -30,6 +30,16 @@ describe('getDateTagColor', () => {
     expect(getDateTagColor('2026-01-12')).toBe('#ef4444')
   })
 
+  it('returns red for overdue (30 days ago)', () => {
+    vi.setSystemTime(new Date(2026, 0, 15, 12, 0, 0))
+    expect(getDateTagColor('2025-12-16')).toBe('#ef4444')
+  })
+
+  it('returns red for overdue (1 year ago)', () => {
+    vi.setSystemTime(new Date(2026, 0, 15, 12, 0, 0))
+    expect(getDateTagColor('2025-01-15')).toBe('#ef4444')
+  })
+
   it('returns yellow for tomorrow', () => {
     vi.setSystemTime(new Date(2026, 0, 15, 12, 0, 0))
     expect(getDateTagColor('2026-01-16')).toBe('#f59e0b')

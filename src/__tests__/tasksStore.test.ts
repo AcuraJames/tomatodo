@@ -48,6 +48,16 @@ describe('tasksStore', () => {
       const store = useTasksStore()
       expect(store.determineListType('2026-01-22')).toBe('inbox')
     })
+
+    it('returns today for 30 days ago (far overdue)', () => {
+      const store = useTasksStore()
+      expect(store.determineListType('2025-12-16')).toBe('today')
+    })
+
+    it('returns inbox for empty string', () => {
+      const store = useTasksStore()
+      expect(store.determineListType('')).toBe('inbox')
+    })
   })
 
   describe('addTask', () => {
@@ -72,6 +82,13 @@ describe('tasksStore', () => {
       store.addTask('proj-1', 'Task 1', 'project')
       store.addTask('proj-1', 'Task 2', 'project')
       expect(store.tasks[0].id).not.toBe(store.tasks[1].id)
+    })
+
+    it('handles empty projectId for inbox tasks', () => {
+      const store = useTasksStore()
+      store.addTask('', 'Inbox task', 'inbox')
+      expect(store.tasks[0].projectId).toBe('')
+      expect(store.tasks[0].listType).toBe('inbox')
     })
   })
 

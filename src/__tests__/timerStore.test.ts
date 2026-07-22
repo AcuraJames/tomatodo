@@ -175,6 +175,55 @@ describe('timerStore', () => {
       store.recoverFromReload()
       expect(store.remaining).toBe(25 * 60)
     })
+
+    it('updates lastTickAt after recovery', () => {
+      const store = useTimerStore()
+      store.start()
+      store.lastTickAt = new Date(Date.now() - 10_000).toISOString()
+      store.remaining = 1500
+      store.recoverFromReload()
+      const newTickAt = new Date(store.lastTickAt!).getTime()
+      expect(newTickAt).toBeGreaterThan(Date.now() - 1000)
+    })
+  })
+
+  describe('lastTickAt tracking', () => {
+    it('start sets lastTickAt', () => {
+      const store = useTimerStore()
+      store.start()
+      expect(store.lastTickAt).toBeTruthy()
+    })
+
+    it('resume sets lastTickAt', () => {
+      const store = useTimerStore()
+      store.start()
+      store.pause()
+      store.lastTickAt = null
+      store.resume()
+      expect(store.lastTickAt).toBeTruthy()
+    })
+
+    it('startBreak sets lastTickAt', () => {
+      const store = useTimerStore()
+      store.startBreak()
+      expect(store.lastTickAt).toBeTruthy()
+    })
+
+    it('tick updates lastTickAt', () => {
+      const store = useTimerStore()
+      store.start()
+      const before = store.lastTickAt
+      vi.advanceTimersByTime(1000)
+      store.tick()
+      expect(store.lastTickAt).not.toBe(before)
+    })
+
+    it('reset clears lastTickAt', () => {
+      const store = useTimerStore()
+      store.start()
+      store.reset()
+      expect(store.lastTickAt).toBeNull()
+    })
   })
 
   describe('setActiveTask', () => {
