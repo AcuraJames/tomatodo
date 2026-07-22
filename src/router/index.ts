@@ -4,12 +4,12 @@ const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', name: 'home', component: () => import('../views/HomeView.vue') },
-    { path: '/tasks/:view(inbox|today|week)?', name: 'tasks', component: () => import('../views/TasksView.vue') },
+    { path: '/tasks/:view(inbox|today|plans)?', name: 'tasks', component: () => import('../views/TasksView.vue') },
     { path: '/tasks/project/:projectId', name: 'projectTasks', component: () => import('../views/TasksView.vue') },
     { path: '/timer', name: 'timer', component: () => import('../views/TimerView.vue') },
     { path: '/stats', name: 'stats', component: () => import('../views/StatsView.vue') },
     { path: '/settings', name: 'settings', component: () => import('../views/SettingsView.vue') },
-    { path: '/:pathMatch(.*)*', name: 'not-found', redirect: '/' },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('../views/NotFoundView.vue') },
   ],
 })
 

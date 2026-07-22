@@ -10,7 +10,7 @@ export interface Project {
 export interface Task {
   id: string
   projectId: string
-  listType: 'project' | 'inbox' | 'today' | 'week'
+  listType: 'project' | 'inbox' | 'today' | 'plans'
   title: string
   status: 'active' | 'done'
   totalSeconds: number

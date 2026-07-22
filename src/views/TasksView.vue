@@ -7,7 +7,7 @@ import CalendarPicker from '../components/ui/CalendarPicker.vue'
 import ProjectModal from '../components/ui/ProjectModal.vue'
 import { useProjectsStore } from '../stores/projectsStore'
 import { useTasksStore } from '../stores/tasksStore'
-import { getDateTagColor, formatDate, getProjectName, getProjectColor } from '../utils/helpers'
+import { getDateTagColor, getDateTagText, getProjectName, getProjectColor } from '../utils/helpers'
 import type { Task } from '../types'
 
 const route = useRoute()
@@ -21,22 +21,22 @@ const editingTaskId = ref<string | null>(null)
 const editValue = ref('')
 const showProjectModal = ref(false)
 
-const viewType = computed<'inbox' | 'today' | 'week' | 'project'>(() => {
+const viewType = computed<'inbox' | 'today' | 'plans' | 'project'>(() => {
   const v = route.params.view as string
-  if (v === 'inbox' || v === 'today' || v === 'week') return v
+  if (v === 'inbox' || v === 'today' || v === 'plans') return v
   return 'project'
 })
 
 const projectId = computed(() => route.params.projectId as string || '')
 
-const isList = computed(() => viewType.value === 'inbox' || viewType.value === 'today' || viewType.value === 'week')
+const isList = computed(() => viewType.value === 'inbox' || viewType.value === 'today' || viewType.value === 'plans')
 
 const showCalendar = computed(() => viewType.value !== 'today')
 
 const pageTitle = computed(() => {
   if (viewType.value === 'inbox') return { emoji: '📋', title: 'Входящие' }
   if (viewType.value === 'today') return { emoji: '📅', title: 'Сегодня' }
-  if (viewType.value === 'week') return { emoji: '📆', title: 'На этой неделе' }
+  if (viewType.value === 'plans') return { emoji: '📆', title: 'Планы' }
   const p = project.value
   if (p) return { emoji: p.emoji, title: p.name }
   return { emoji: '📁', title: 'Проекты' }
@@ -47,7 +47,7 @@ const project = computed(() => projects.sortedProjects.find(p => p.id === projec
 const activeTasks = computed<Task[]>(() => {
   if (viewType.value === 'inbox') return tasksStore.inboxTasks
   if (viewType.value === 'today') return tasksStore.todayTasks
-  if (viewType.value === 'week') return tasksStore.weekTasks
+  if (viewType.value === 'plans') return tasksStore.plansTasks
   if (projectId.value) {
     return tasksStore.projectTasks.filter(t => t.projectId === projectId.value)
       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -58,7 +58,7 @@ const activeTasks = computed<Task[]>(() => {
 const doneTasks = computed<Task[]>(() => {
   if (viewType.value === 'inbox') return tasksStore.doneInbox
   if (viewType.value === 'today') return tasksStore.doneToday
-  if (viewType.value === 'week') return tasksStore.doneWeek
+  if (viewType.value === 'plans') return tasksStore.donePlans
   if (projectId.value) {
     return tasksStore.doneProject.filter(t => t.projectId === projectId.value)
   }
@@ -72,9 +72,8 @@ watch(() => route.params, () => {
 
 function addTask() {
   if (!newTaskTitle.value.trim()) return
-  const listType = viewType.value === 'project' ? 'project' : viewType.value
-  const pid = viewType.value === 'project' ? projectId.value : listType
-  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType, newTaskDueDate.value || undefined)
+  const ctx = viewType.value === 'project' ? 'project' : viewType.value
+  tasksStore.addTask(projectId.value, newTaskTitle.value.trim(), ctx, newTaskDueDate.value || undefined, ctx)
   newTaskTitle.value = ''
   newTaskDueDate.value = ''
 }
@@ -180,7 +179,7 @@ function goToTimer(taskId: string) {
                 </span>
                 <Tag
                   v-if="t.dueDate"
-                  :text="formatDate(t.dueDate)"
+                  :text="getDateTagText(t.dueDate) || ''"
                   :color="getDateTagColor(t.dueDate) || '#6b7280'"
                 />
                 <Tag

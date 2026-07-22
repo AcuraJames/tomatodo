@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { ref } from 'vue'
 import CalendarPicker from '../components/ui/CalendarPicker.vue'
 
 describe('CalendarPicker', () => {
@@ -99,7 +98,8 @@ describe('CalendarPicker', () => {
     await wrapper.vm.$nextTick()
     const calendarBtns = document.body.querySelectorAll('button')
     for (const btn of calendarBtns) {
-      if (btn.textContent?.trim() === '10') {
+      const text = btn.textContent?.trim()
+      if (text === '20' && !btn.classList.contains('cursor-not-allowed')) {
         await btn.click()
         break
       }

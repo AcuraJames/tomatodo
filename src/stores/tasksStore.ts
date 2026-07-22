@@ -2,7 +2,11 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { Task } from '../types'
 
-function determineListType(dueDate?: string): Task['listType'] {
+function determineListType(dueDate?: string, context?: string): Task['listType'] {
+  if (context === 'inbox') return 'inbox'
+  if (context === 'today') return 'today'
+  if (context === 'project') return 'project'
+
   if (!dueDate) return 'inbox'
 
   const now = new Date()
@@ -12,8 +16,7 @@ function determineListType(dueDate?: string): Task['listType'] {
   const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
 
   if (diffDays <= 0) return 'today'
-  if (diffDays >= 1 && diffDays <= 6) return 'week'
-  return 'inbox'
+  return 'plans'
 }
 
 export const useTasksStore = defineStore('tasks', () => {
@@ -29,8 +32,8 @@ export const useTasksStore = defineStore('tasks', () => {
       .sort((a, b) => a.sortOrder - b.sortOrder)
   )
 
-  const weekTasks = computed(() =>
-    [...tasks.value].filter(t => t.listType === 'week' && t.status === 'active')
+  const plansTasks = computed(() =>
+    [...tasks.value].filter(t => t.listType === 'plans' && t.status === 'active')
       .sort((a, b) => a.sortOrder - b.sortOrder)
   )
 
@@ -54,8 +57,8 @@ export const useTasksStore = defineStore('tasks', () => {
       .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''))
   )
 
-  const doneWeek = computed(() =>
-    [...tasks.value].filter(t => t.listType === 'week' && t.status === 'done')
+  const donePlans = computed(() =>
+    [...tasks.value].filter(t => t.listType === 'plans' && t.status === 'done')
       .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''))
   )
 
@@ -74,17 +77,18 @@ export const useTasksStore = defineStore('tasks', () => {
     return map
   })
 
-  function addTask(projectId: string, title: string, listType: Task['listType'] = 'project', dueDate?: string) {
-    const resolvedListType = listType === 'project' ? 'project' : determineListType(dueDate)
+  function addTask(projectId: string, title: string, _listType?: Task['listType'], dueDate?: string, context?: string) {
+    const resolvedListType = determineListType(dueDate, context)
+    const effectiveProjectId = resolvedListType === 'project' ? projectId : ''
     const task: Task = {
       id: crypto.randomUUID(),
-      projectId,
+      projectId: effectiveProjectId,
       listType: resolvedListType,
       title,
       status: 'active',
       totalSeconds: 0,
       dueDate,
-      sortOrder: tasks.value.filter(t => t.projectId === projectId && t.listType === resolvedListType).length,
+      sortOrder: tasks.value.filter(t => t.listType === resolvedListType).length,
       createdAt: new Date().toISOString(),
     }
     tasks.value.push(task)
@@ -93,10 +97,10 @@ export const useTasksStore = defineStore('tasks', () => {
   function updateTask(id: string, data: Partial<Task>) {
     const idx = tasks.value.findIndex(t => t.id === id)
     if (idx !== -1) {
-      if (data.dueDate !== undefined) {
-        data.listType = determineListType(data.dueDate)
-      }
       Object.assign(tasks.value[idx], data)
+      if ('dueDate' in data) {
+        tasks.value[idx].listType = determineListType(data.dueDate, tasks.value[idx].listType === 'project' ? 'project' : undefined)
+      }
     }
   }
 
@@ -134,8 +138,8 @@ export const useTasksStore = defineStore('tasks', () => {
 
   return {
     tasks,
-    inboxTasks, todayTasks, weekTasks, projectTasks, activeTasks,
-    doneInbox, doneToday, doneWeek, doneProject,
+    inboxTasks, todayTasks, plansTasks, projectTasks, activeTasks,
+    doneInbox, doneToday, donePlans, doneProject,
     tasksByProject,
     addTask, updateTask, completeTask, reactivateTask, deleteTask, addSeconds, reorder, determineListType,
   }

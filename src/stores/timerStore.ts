@@ -86,9 +86,12 @@ export const useTimerStore = defineStore('timer', () => {
     const newRemaining = remaining.value - elapsed
     if (newRemaining <= 0) {
       remaining.value = 0
+      status.value = 'idle'
+      lastTickAt.value = null
     } else {
       remaining.value = newRemaining
       lastTickAt.value = new Date().toISOString()
+      status.value = 'paused'
     }
   }
 

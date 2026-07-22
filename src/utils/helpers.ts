@@ -7,10 +7,21 @@ export function getDateTagColor(dueDate?: string): string | undefined {
   const due = new Date(dueDate)
   const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
   const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays < 0) return '#ef4444'
-  if (diffDays === 0) return '#ef4444'
+  if (diffDays <= 0) return '#ef4444'
   if (diffDays >= 1 && diffDays <= 6) return '#f59e0b'
   return '#22c55e'
+}
+
+export function getDateTagText(dueDate?: string): string | undefined {
+  if (!dueDate) return undefined
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const due = new Date(dueDate)
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
+  const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays <= 0) return 'Сегодня'
+  if (diffDays === 1) return 'Завтра'
+  return formatDate(dueDate)
 }
 
 export function formatDate(dateStr: string): string {

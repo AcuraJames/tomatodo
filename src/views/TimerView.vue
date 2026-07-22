@@ -16,7 +16,7 @@ import { useSessionsStore } from '../stores/sessionsStore'
 import { useZenStore } from '../stores/zenStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useNotification } from '../composables/useNotification'
-import { getDateTagColor, formatDate, getProjectName, getProjectColor } from '../utils/helpers'
+import { getDateTagColor, getDateTagText, getProjectName, getProjectColor } from '../utils/helpers'
 
 const timer = useTimerStore()
 const tasksStore = useTasksStore()
@@ -129,8 +129,26 @@ function stopTimer() {
 function createTask() {
   if (!newTaskTitle.value.trim()) return
   const pid = newTaskProjectId.value || ''
-  const listType = pid ? 'project' : 'inbox'
-  tasksStore.addTask(pid, newTaskTitle.value.trim(), listType, newTaskDueDate.value || undefined)
+  const hasProject = !!pid
+  const hasDueDate = !!newTaskDueDate.value
+
+  if (hasProject) {
+    tasksStore.addTask(pid, newTaskTitle.value.trim(), 'project', newTaskDueDate.value || undefined, 'project')
+  } else if (hasDueDate) {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const due = new Date(newTaskDueDate.value)
+    const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate())
+    const diffDays = Math.round((dueDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays <= 0) {
+      tasksStore.addTask('', newTaskTitle.value.trim(), 'today', newTaskDueDate.value, 'today')
+    } else {
+      tasksStore.addTask('', newTaskTitle.value.trim(), 'plans', newTaskDueDate.value)
+    }
+  } else {
+    tasksStore.addTask('', newTaskTitle.value.trim(), 'inbox', undefined, 'inbox')
+  }
+
   const created = tasksStore.tasks[tasksStore.tasks.length - 1]
   timer.setActiveTask(created.id)
   newTaskTitle.value = ''
@@ -264,7 +282,6 @@ onUnmounted(() => {
         <KoiFishCanvas v-if="!timer.zenMode" :progress="progress" />
         <div class="relative flex flex-col items-center gap-6" style="z-index: 10;">
           <div class="relative w-56 h-56">
-            <!-- Regular progress circle (non-Zen) -->
             <template v-if="!timer.zenMode">
               <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" stroke-width="3" class="text-glass-border" />
@@ -281,7 +298,6 @@ onUnmounted(() => {
                 />
               </svg>
             </template>
-            <!-- Enso canvas (Zen mode) -->
             <EnsoCircle v-else :progress="progress" :size="224" />
             <div class="absolute inset-0 flex flex-col items-center justify-center" style="z-index: 10;">
               <span class="text-5xl font-bold tracking-tight font-mono">{{ displayTime }}</span>
@@ -323,7 +339,7 @@ onUnmounted(() => {
                 />
                 <Tag
                   v-if="selectedTask && selectedTask.dueDate"
-                  :text="formatDate(selectedTask.dueDate)"
+                  :text="getDateTagText(selectedTask.dueDate) || ''"
                   :color="getDateTagColor(selectedTask.dueDate) || '#6b7280'"
                 />
               </div>
@@ -355,7 +371,7 @@ onUnmounted(() => {
         <div v-if="showNewTaskForm" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" @click.self="cancelNewTask">
           <div class="bg-white dark:bg-[#1a1a2e] p-6 rounded-2xl w-80 space-y-5 shadow-2xl border border-glass-border">
             <div class="flex items-center justify-between">
-              <h3 class="font-semibold">Новая задача</h3>
+              <h3 class="font-semibold text-text">Новая задача</h3>
               <button class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer text-text-secondary" @click="cancelNewTask">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
               </button>
@@ -363,7 +379,7 @@ onUnmounted(() => {
 
             <input
               v-model="newTaskTitle"
-              class="w-full bg-transparent border-b-2 border-glass-border focus:border-accent outline-none px-1 py-1 text-sm transition-colors"
+              class="w-full bg-transparent border-b-2 border-glass-border focus:border-accent outline-none px-1 py-1 text-sm transition-colors text-text"
               placeholder="Название задачи..."
               @keyup.enter="createTask"
             />
@@ -372,9 +388,9 @@ onUnmounted(() => {
               <label class="text-xs text-text-secondary mb-2 block">Проект</label>
               <select
                 v-model="newTaskProjectId"
-                class="w-full px-4 py-2.5 text-sm rounded-xl bg-white dark:bg-[#1a1a2e] border border-glass-border focus:border-accent outline-none appearance-none cursor-pointer transition-colors"
+                class="w-full px-4 py-2.5 text-sm rounded-xl bg-white dark:bg-[#1a1a2e] border border-glass-border focus:border-accent outline-none appearance-none cursor-pointer transition-colors text-text"
               >
-                <option value="">Входящие</option>
+                <option value="">Без проекта</option>
                 <option v-for="p in projectsList" :key="p.id" :value="p.id">
                   {{ p.emoji }} {{ p.name }}
                 </option>
