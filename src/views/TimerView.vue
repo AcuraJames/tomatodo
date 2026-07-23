@@ -269,8 +269,8 @@ onUnmounted(() => {
             @click="timer.toggleZen()"
           >
             <div
-              class="w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
-              :class="timer.zenMode ? 'translate-x-[18px]' : 'translate-x-0'"
+              class="w-4 h-4 rounded-full shadow transition-transform duration-200"
+              :class="timer.zenMode ? 'bg-white translate-x-[18px]' : 'bg-accent translate-x-0'"
             />
           </button>
           <span class="text-sm text-text-secondary">Zen mode</span>
